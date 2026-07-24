@@ -68,8 +68,16 @@ export function App() {
       </div>
 
       {!isSwaggerPage && (
-        <div className="rounded-lg bg-gray-50 p-3 text-xs text-gray-500 dark:bg-gray-900 dark:text-gray-400">
-          No Swagger/OpenAPI page detected on this tab. Navigate to a Swagger UI, /openapi, or /api-docs page.
+        <div className="space-y-3">
+          <div className="rounded-lg bg-gray-50 p-3 text-xs text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+            No Swagger/OpenAPI page detected on this tab. You can still open the sidebar to enter your spec URL manually.
+          </div>
+          <button
+            onClick={openSidebar}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            <PanelRightOpen size={14} /> Open Sidebar
+          </button>
         </div>
       )}
 

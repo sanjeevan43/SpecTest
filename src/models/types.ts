@@ -266,6 +266,7 @@ export type ExtensionMessageType =
   | 'SWAGGER_NOT_FOUND'
   | 'PARSE_DOCUMENT'
   | 'DOCUMENT_PARSED'
+  | 'SET_PARSE_ERROR'
   | 'CAPTURE_AUTH'
   | 'AUTH_CAPTURED'
   | 'RUN_ALL'

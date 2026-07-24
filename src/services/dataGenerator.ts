@@ -76,7 +76,9 @@ export function generateParamValue(param: ApiParameter): unknown {
 export function generateParamValues(params: ApiParameter[]): Record<string, Record<string, unknown>> {
   const grouped: Record<string, Record<string, unknown>> = { path: {}, query: {}, header: {}, cookie: {} };
   for (const param of params) {
-    grouped[param.in][param.name] = generateParamValue(param);
+    if (grouped[param.in]) {
+      grouped[param.in][param.name] = generateParamValue(param);
+    }
   }
   return grouped;
 }

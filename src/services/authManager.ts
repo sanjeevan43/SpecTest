@@ -95,7 +95,8 @@ export function buildAuthArtifacts(
     const prefix = cred.type === 'bearer' || cred.type === 'oauth2' ? 'Bearer ' : cred.type === 'basic' ? 'Basic ' : '';
 
     if (cred.location === 'header' && cred.headerName) {
-      headers[cred.headerName] = `${prefix}${cred.value}`;
+      const alreadyHasPrefix = prefix && cred.value.toLowerCase().startsWith(prefix.toLowerCase().trim());
+      headers[cred.headerName] = alreadyHasPrefix ? cred.value : `${prefix}${cred.value}`;
     } else if (cred.location === 'query' && cred.paramName) {
       query[cred.paramName] = cred.value;
     } else if (cred.location === 'cookie' && cred.paramName) {

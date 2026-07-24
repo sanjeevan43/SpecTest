@@ -18,10 +18,14 @@ export function SidebarApp({ tabId }: { tabId: number }) {
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
   const setSidebarCollapsed = useAppStore((s) => s.setSidebarCollapsed);
+  const initiateParse = useAppStore((s) => s.initiateParse);
 
   const [width, setWidth] = useState(420);
   const [position, setPosition] = useState({ top: 24, right: 24 });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [manualUrl, setManualUrl] = useState('');
+  const [parsingManual, setParsingManual] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{ startX: number; startY: number; startTop: number; startRight: number } | null>(null);
   const resizeState = useRef<{ startX: number; startWidth: number } | null>(null);
 
@@ -32,8 +36,7 @@ export function SidebarApp({ tabId }: { tabId: number }) {
   useEffect(() => {
     const isSystemDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
     const shouldBeDark = config.theme === 'dark' || (config.theme === 'system' && isSystemDark);
-    const root = window.document.getElementById('swagger-api-auto-tester-root');
-    root?.classList.toggle('dark', shouldBeDark);
+    containerRef.current?.classList.toggle('dark', shouldBeDark);
   }, [config.theme]);
 
   function onDragStart(e: React.PointerEvent) {
@@ -98,6 +101,7 @@ export function SidebarApp({ tabId }: { tabId: number }) {
 
   return (
     <div
+      ref={containerRef}
       className="satt-root fixed z-[999999] flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white text-gray-900 shadow-panel animate-slide-in dark:border-gray-800 dark:bg-gray-950 dark:text-gray-100"
       style={{ top: position.top, right: position.right, width, height: 'min(720px, 85vh)', position: 'fixed' }}
     >
@@ -118,9 +122,32 @@ export function SidebarApp({ tabId }: { tabId: number }) {
       )}
 
       {parseError && (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-xs text-red-500">
-          Failed to parse the OpenAPI document:
-          <span className="font-mono text-[11px] text-gray-500">{parseError}</span>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center text-xs">
+          <div className="text-red-500 font-medium">
+            Failed to load OpenAPI specification:
+            <span className="mt-1 block font-mono text-[11px] text-gray-500 break-all">{parseError}</span>
+          </div>
+          <div className="w-full max-w-sm space-y-2 mt-2">
+            <input
+              type="text"
+              placeholder="Enter OpenAPI JSON/YAML URL..."
+              value={manualUrl}
+              onChange={(e) => setManualUrl(e.target.value)}
+              className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+            />
+            <button
+              onClick={async () => {
+                if (!manualUrl.trim()) return;
+                setParsingManual(true);
+                await initiateParse(manualUrl.trim());
+                setParsingManual(false);
+              }}
+              disabled={parsingManual}
+              className="w-full rounded-md bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+            >
+              {parsingManual ? 'Parsing…' : 'Parse Specification'}
+            </button>
+          </div>
         </div>
       )}
 

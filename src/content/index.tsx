@@ -8,10 +8,13 @@ import sidebarStyles from './index.css?inline';
 
 main().catch((err) => console.error('[Swagger API Auto Tester]', err));
 
-async function main(): Promise<void> {
-  if (!looksLikeSwaggerPage()) return;
+let isInitialized = false;
 
-  const specUrl = await discoverSpecUrl(document, window.location);
+async function initExtension(forced = false): Promise<void> {
+  if (isInitialized) return;
+  isInitialized = true;
+
+  const specUrl = forced ? null : await discoverSpecUrl(document, window.location);
   const framework = detectFramework(document.documentElement.innerHTML);
 
   const pageInfo: SwaggerPageInfo = {
@@ -19,20 +22,43 @@ async function main(): Promise<void> {
     url: window.location.href,
     detectedAt: Date.now(),
     specUrl,
-    framework,
+    framework: forced ? 'swagger-ui' : framework,
   };
 
   const detectResponse = await sendToBackground<{ ok: boolean; tabId: number }>('SWAGGER_DETECTED', pageInfo);
-  if (!detectResponse?.ok) return;
+  if (!detectResponse?.ok) {
+    isInitialized = false;
+    return;
+  }
   const tabId = detectResponse.tabId;
 
   if (specUrl) {
     await sendToBackground('PARSE_DOCUMENT', { specUrl, tabId });
     await captureSwaggerUiAuth(tabId);
+  } else {
+    await sendToBackground('SET_PARSE_ERROR', { error: 'No spec URL discovered automatically.', tabId });
   }
 
   mountSidebar(tabId);
-  listenForPopupCommands();
+}
+
+async function main(): Promise<void> {
+  // Always listen for popup commands, so we can be activated manually on any page
+  onMessage('OPEN_SIDEBAR', () => {
+    initExtension(true).then(() => {
+      useAppStore.getState().setSidebarOpen(true);
+    });
+  });
+  onMessage('TOGGLE_SIDEBAR', () => {
+    initExtension(true).then(() => {
+      const state = useAppStore.getState();
+      state.setSidebarOpen(!state.sidebarOpen);
+    });
+  });
+
+  if (looksLikeSwaggerPage()) {
+    await initExtension(false);
+  }
 }
 
 /** Only run full detection (which involves network probing) on pages that plausibly are Swagger/OpenAPI UIs. */
@@ -72,10 +98,4 @@ function mountSidebar(tabId: number): void {
   root.render(<SidebarApp tabId={tabId} />);
 }
 
-function listenForPopupCommands(): void {
-  onMessage('OPEN_SIDEBAR', () => useAppStore.getState().setSidebarOpen(true));
-  onMessage('TOGGLE_SIDEBAR', () => {
-    const state = useAppStore.getState();
-    state.setSidebarOpen(!state.sidebarOpen);
-  });
-}
+

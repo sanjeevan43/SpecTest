@@ -49,6 +49,7 @@ interface AppStore {
   setConfig: (config: Partial<RunnerConfig>) => Promise<void>;
   setSidebarOpen: (open: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
+  initiateParse: (specUrl: string) => Promise<void>;
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -152,6 +153,21 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   setSidebarOpen: (open: boolean) => set({ sidebarOpen: open }),
   setSidebarCollapsed: (collapsed: boolean) => set({ sidebarCollapsed: collapsed }),
+  initiateParse: async (specUrl: string) => {
+    const { tabId } = get();
+    if (tabId === null) return;
+    set({ parseError: null, document: null });
+    try {
+      const response = await sendToBackground<{ ok: boolean; document?: ParsedApiDocument; error?: string }>('PARSE_DOCUMENT', { specUrl, tabId });
+      if (response?.ok && response.document) {
+        set({ document: response.document, parseError: null });
+      } else {
+        set({ parseError: response?.error ?? 'Unknown parsing error' });
+      }
+    } catch (err) {
+      set({ parseError: err instanceof Error ? err.message : String(err) });
+    }
+  },
 }));
 
 async function runViaTab(tabId: number | null, type: Parameters<typeof sendToBackground>[0], payload?: unknown) {

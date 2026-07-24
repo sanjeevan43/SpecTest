@@ -85,6 +85,7 @@ async function handleMessage(message: ExtensionMessage, sender: chrome.runtime.M
     case 'SWAGGER_DETECTED': {
       if (tabId === undefined) return { ok: false };
       const info = message.payload as SwaggerPageInfo;
+      info.tabId = tabId;
       const state = getOrCreateTabState(tabId);
       state.pageInfo = info;
       await chromeStorage.setSwaggerPage(info);
@@ -96,6 +97,9 @@ async function handleMessage(message: ExtensionMessage, sender: chrome.runtime.M
       const { specUrl } = message.payload as { specUrl: string };
       const state = getOrCreateTabState(tabId);
       try {
+        if (!specUrl) {
+          throw new Error('No spec URL discovered automatically.');
+        }
         const document = await fetchAndParseSpec(specUrl);
         state.document = document;
         state.parseError = undefined;
@@ -105,6 +109,14 @@ async function handleMessage(message: ExtensionMessage, sender: chrome.runtime.M
         state.parseError = err instanceof Error ? err.message : String(err);
         return { ok: false, error: state.parseError };
       }
+    }
+
+    case 'SET_PARSE_ERROR': {
+      if (tabId === undefined) return { ok: false };
+      const { error } = message.payload as { error: string };
+      const state = getOrCreateTabState(tabId);
+      state.parseError = error;
+      return { ok: true };
     }
 
     case 'CAPTURE_AUTH': {

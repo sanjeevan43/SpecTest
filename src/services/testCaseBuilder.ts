@@ -14,6 +14,10 @@ export interface TestCaseSpec {
 
 /** Builds every test case that should run for a given endpoint, gated by the runner config. */
 export function buildTestCases(endpoint: ApiEndpoint, config: RunnerConfig): TestCaseSpec[] {
+  if (endpoint.id.endsWith('::post-delete-check')) {
+    return [{ kind: 'expected_404_after_delete' }];
+  }
+
   const cases: TestCaseSpec[] = [{ kind: 'happy_path' }];
 
   const idParamNames = extractPathParamNames(endpoint.path);
