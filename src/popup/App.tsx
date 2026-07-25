@@ -1,139 +1,132 @@
-import { useEffect, useState } from 'react';
-import { Play, PanelRightOpen, Settings, CheckCircle2, XCircle } from 'lucide-react';
-import { sendToBackground } from '@/services/messageBus';
-import type { ParsedApiDocument, RunSummary, SwaggerPageInfo } from '@/models/types';
-import { formatTimestamp, formatMs } from '@/utils/formatters';
+import React, { useEffect, useState } from 'react';
+import type { BackgroundStateResponse } from '../types';
 
-interface PopupState {
-  tabId: number | null;
-  pageInfo: SwaggerPageInfo | null;
-  document: ParsedApiDocument | null;
-  summary: RunSummary | null;
-  isRunning: boolean;
+interface TabState {
+  url: string;
+  detected: boolean;
+  framework: string;
+  version: string;
 }
 
 export function App() {
-  const [state, setState] = useState<PopupState>({ tabId: null, pageInfo: null, document: null, summary: null, isRunning: false });
+  const [tabState, setTabState] = useState<TabState | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const manifest = chrome.runtime.getManifest();
+  const version = manifest.version;
+  const name = manifest.name;
+
   useEffect(() => {
-    load();
-  }, []);
+    async function fetchState() {
+      setLoading(true);
+      // Get current active tab
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const activeTab = tabs[0];
+        const tabUrl = activeTab?.url || 'Unknown';
 
-  async function load() {
-    setLoading(true);
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id) {
-      setLoading(false);
-      return;
+        // Message background to get state
+        chrome.runtime.sendMessage({ type: 'GET_STATE' }, (response: BackgroundStateResponse) => {
+          if (chrome.runtime.lastError || !response) {
+            setTabState({
+              url: tabUrl,
+              detected: false,
+              framework: 'None',
+              version: version,
+            });
+          } else {
+            setTabState({
+              url: tabUrl,
+              detected: response.detected,
+              framework: response.pageInfo?.framework || 'None',
+              version: version,
+            });
+          }
+          setLoading(false);
+        });
+      });
     }
-    const response = await sendToBackground<{
-      ok: boolean;
-      state: { pageInfo?: SwaggerPageInfo; document?: ParsedApiDocument; summary?: RunSummary; isRunning: boolean };
-    }>('GET_STATE', { tabId: tab.id });
 
-    setState({
-      tabId: tab.id,
-      pageInfo: response?.state?.pageInfo ?? null,
-      document: response?.state?.document ?? null,
-      summary: response?.state?.summary ?? null,
-      isRunning: response?.state?.isRunning ?? false,
-    });
-    setLoading(false);
-  }
-
-  async function openSidebar() {
-    if (state.tabId === null) return;
-    await sendToBackground('OPEN_SIDEBAR', { tabId: state.tabId });
-    window.close();
-  }
-
-  async function quickRun() {
-    if (state.tabId === null) return;
-    await openSidebar();
-    await sendToBackground('RUN_ALL', { tabId: state.tabId });
-  }
+    fetchState();
+  }, [version]);
 
   if (loading) {
-    return <div className="p-6 text-center text-xs text-gray-400">Loading…</div>;
+    return (
+      <div className="flex items-center justify-center p-6 text-sm text-gray-500 bg-gray-50 dark:bg-gray-900 w-80">
+        <div className="w-5 h-5 mr-2 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <span>Loading...</span>
+      </div>
+    );
   }
 
-  const isSwaggerPage = Boolean(state.pageInfo);
+  const isSwagger = tabState?.detected ?? false;
 
   return (
-    <div className="p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <div className={`h-2.5 w-2.5 rounded-full ${isSwaggerPage ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700'}`} />
-        <span className="text-sm font-semibold">Swagger API Auto Tester</span>
-      </div>
-
-      {!isSwaggerPage && (
-        <div className="space-y-3">
-          <div className="rounded-lg bg-gray-50 p-3 text-xs text-gray-500 dark:bg-gray-900 dark:text-gray-400">
-            No Swagger/OpenAPI page detected on this tab. You can still open the sidebar to enter your spec URL manually.
-          </div>
-          <button
-            onClick={openSidebar}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700"
-          >
-            <PanelRightOpen size={14} /> Open Sidebar
-          </button>
+    <div className="w-80 bg-slate-900 text-slate-100 p-5 select-none font-sans">
+      {/* Header */}
+      <div className="flex items-center gap-2 pb-4 mb-4 border-b border-slate-800">
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-bold shadow-md shadow-blue-500/20">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+          </svg>
         </div>
-      )}
-
-      {isSwaggerPage && (
-        <>
-          <div className="mb-3 rounded-lg bg-gray-50 p-3 text-xs dark:bg-gray-900">
-            <div className="mb-1 font-medium text-gray-800 dark:text-gray-100">{state.document?.title ?? 'Detected Swagger page'}</div>
-            <div className="text-gray-400">
-              {state.pageInfo?.framework} · {state.document?.endpoints.length ?? 0} endpoints
-            </div>
-          </div>
-
-          {state.summary && (
-            <div className="mb-3 grid grid-cols-2 gap-2 text-xs">
-              <StatCard icon={<CheckCircle2 size={13} className="text-emerald-500" />} label="Passed" value={state.summary.passed} />
-              <StatCard icon={<XCircle size={13} className="text-red-500" />} label="Failed" value={state.summary.failed} />
-              <StatCard label="Last Run" value={formatTimestamp(state.summary.finishedAt)} wide />
-              <StatCard label="Avg Time" value={formatMs(state.summary.averageTimeMs)} wide />
-            </div>
-          )}
-
-          <div className="flex flex-col gap-2">
-            <button
-              onClick={quickRun}
-              disabled={state.isRunning}
-              className="flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-            >
-              <Play size={14} /> {state.isRunning ? 'Running…' : 'Quick Run'}
-            </button>
-            <button
-              onClick={openSidebar}
-              className="flex items-center justify-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
-            >
-              <PanelRightOpen size={14} /> Open Sidebar
-            </button>
-            <button
-              onClick={openSidebar}
-              className="flex items-center justify-center gap-2 rounded-lg bg-transparent px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-            >
-              <Settings size={14} /> Settings
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function StatCard({ icon, label, value, wide }: { icon?: React.ReactNode; label: string; value: string | number; wide?: boolean }) {
-  return (
-    <div className={`rounded-lg bg-gray-50 p-2 dark:bg-gray-900 ${wide ? 'col-span-2' : ''}`}>
-      <div className="flex items-center gap-1 text-gray-400">
-        {icon}
-        <span className="text-[10px] uppercase tracking-wide">{label}</span>
+        <div>
+          <h1 className="text-sm font-bold tracking-tight text-white">{name}</h1>
+          <p className="text-[10px] text-slate-400 font-medium">Version {tabState?.version}</p>
+        </div>
       </div>
-      <div className="font-semibold text-gray-800 dark:text-gray-100">{value}</div>
+
+      {/* Info Section */}
+      <div className="space-y-4 text-xs">
+        {/* Current Tab */}
+        <div>
+          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Current Tab</span>
+          <div className="mt-1 p-2 bg-slate-950/50 border border-slate-800 rounded-md text-slate-300 break-all max-h-16 overflow-y-auto font-mono text-[10px] scrollbar-thin">
+            {tabState?.url}
+          </div>
+        </div>
+
+        {/* Detection Status */}
+        <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950/30 border border-slate-800/80">
+          <div>
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Swagger Detected</span>
+            <div className="mt-0.5 text-xs font-semibold text-slate-200">
+              {isSwagger ? `Yes (${tabState?.framework})` : 'No'}
+            </div>
+          </div>
+          <div className="flex items-center">
+            {isSwagger ? (
+              <span className="flex h-3.5 w-3.5 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500"></span>
+              </span>
+            ) : (
+              <span className="inline-flex rounded-full h-3.5 w-3.5 bg-slate-600"></span>
+            )}
+          </div>
+        </div>
+
+        {/* Operational Status */}
+        <div>
+          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Status</span>
+          <div className="mt-1 flex items-center gap-1.5 text-slate-300 font-medium">
+            {isSwagger ? (
+              <>
+                <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Detection Active. Floating button injected.</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>Waiting for Swagger page.</span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
