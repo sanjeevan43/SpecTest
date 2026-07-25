@@ -1,7 +1,7 @@
 import type { ApiEndpoint, ParsedApiDocument } from '../types';
 import type { ApiResponse } from '../types/ApiResponse';
 import type { ValidationError } from '../models/ValidationError';
-import { SchemaValidator } from './SchemaValidator';
+import { JsonSchemaValidator } from './JsonSchemaValidator';
 
 export class ResponseValidator {
   /**
@@ -61,14 +61,15 @@ export class ResponseValidator {
 
     // 3. Response Body Schema Validation
     if (documentedResponse.schema && response.body !== undefined) {
-      const bodyResult = SchemaValidator.validatePayload(
+      JsonSchemaValidator.validate(
         response.body,
         documentedResponse.schema,
         document,
+        'body',
+        errors,
+        warnings,
         settings
       );
-      errors.push(...bodyResult.errors);
-      warnings.push(...bodyResult.warnings);
     }
 
     return {

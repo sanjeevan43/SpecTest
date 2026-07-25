@@ -1,6 +1,36 @@
-node_modules
-dist
-dist_zip
+# Build outputs
+dist/
+dist-zip/
+*.zip
+
+# Dependencies
+node_modules/
+
+# Testing & Coverage
+coverage/
+.vitest/
+
+# Logs
 *.log
+npm-debug.log*
+
+# OS artifacts
 .DS_Store
-.vite
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# TypeScript build info
+tsconfig.tsbuildinfo
+
+# Vite cache
+.vite/
