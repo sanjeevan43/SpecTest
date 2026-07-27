@@ -68,6 +68,26 @@ export class PathParameterResolver {
       }
     }
 
+    // Pipeline Priority 3.5: AI-Assisted Inference
+    const aiStore = (await import('../store/aiStore')).useAIStore.getState();
+    if (aiStore.enabled) {
+      try {
+        const aiResolution = await (
+          await import('./DependencyInferenceService')
+        ).DependencyInferenceService.resolveParameter(paramName, endpointId, document);
+        if (aiResolution) {
+          return {
+            name: paramName,
+            value: aiResolution.value,
+            source: 'collection', // reuse source or map it
+            sourceDetails: aiResolution.sourceDetails,
+          };
+        }
+      } catch (err) {
+        console.warn(`[Dependency Engine] AI Inference parameter lookup failed:`, err);
+      }
+    }
+
     // Pipeline Priority 4: Generated Fallback from Schema
     const endpoint = document.endpoints.find((e) => e.id === endpointId);
     const paramSpec = endpoint?.parameters.find((p) => p.name === paramName);

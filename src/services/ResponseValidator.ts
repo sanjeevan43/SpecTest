@@ -22,9 +22,21 @@ export class ResponseValidator {
 
     // 1. Status Code Validation
     const actualStatus = String(response.statusCode);
-    const documentedResponse = endpoint.responses.find(
-      (r) => r.statusCode === actualStatus || r.statusCode === 'default'
+    const actualContentType = response.headers['content-type'] || '';
+
+    // Find documented response matching status code and content type first
+    let documentedResponse = endpoint.responses.find(
+      (r) =>
+        (r.statusCode === actualStatus || r.statusCode === 'default') &&
+        (!r.contentType || actualContentType.toLowerCase().includes(r.contentType.toLowerCase()))
     );
+
+    // Fallback: match by status code only if no content type match was found
+    if (!documentedResponse) {
+      documentedResponse = endpoint.responses.find(
+        (r) => r.statusCode === actualStatus || r.statusCode === 'default'
+      );
+    }
 
     if (!documentedResponse) {
       // Find any documented status codes to show mismatch
@@ -41,19 +53,16 @@ export class ResponseValidator {
     }
 
     // 2. Content Type Validation
-    const actualContentType = response.headers['content-type'] || '';
-    if (documentedResponse.contentTypes && documentedResponse.contentTypes.length > 0) {
-      const match = documentedResponse.contentTypes.some((type) =>
-        actualContentType.toLowerCase().includes(type.toLowerCase())
-      );
+    if (documentedResponse.contentType) {
+      const match = actualContentType.toLowerCase().includes(documentedResponse.contentType.toLowerCase());
 
       if (!match) {
         errors.push({
           path: 'headers.content-type',
           errorType: 'content_type_mismatch',
-          expected: documentedResponse.contentTypes.join(' or '),
+          expected: documentedResponse.contentType,
           actual: actualContentType,
-          message: `Content-Type mismatch: expected header to match "${documentedResponse.contentTypes.join(' or ')}", but received "${actualContentType}".`,
+          message: `Content-Type mismatch: expected header to match "${documentedResponse.contentType}", but received "${actualContentType}".`,
           suggestion: 'Ensure the backend controller sets the proper Content-Type header in response headers.',
         });
       }

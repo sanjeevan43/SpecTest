@@ -7,7 +7,10 @@ export interface SwaggerPageInfo {
 
 export type ExtensionMessage =
   | { type: 'SWAGGER_DETECTED'; payload: SwaggerPageInfo }
-  | { type: 'GET_STATE' };
+  | { type: 'GET_STATE' }
+  | { type: 'DETECT_SWAGGER_VARS' }
+  | { type: 'DETECT_SWAGGER_URLS' }
+  | { type: 'SCRAPE_SWAGGER_AUTH' };
 
 export interface BackgroundStateResponse {
   ok: boolean;
@@ -28,6 +31,15 @@ export interface ApiSchema {
   description?: string;
   example?: unknown;
   ref?: string;
+  default?: unknown;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  minimum?: number;
+  maximum?: number;
+  minItems?: number;
+  maxItems?: number;
+  uniqueItems?: boolean;
 }
 
 export interface ApiParameter {

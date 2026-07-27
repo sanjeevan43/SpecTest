@@ -97,58 +97,17 @@ export class SwaggerDetector {
 
   private static detectFromPageContext(): Promise<string[]> {
     return new Promise((resolve) => {
-      const scriptContent = `
-        (function() {
-          const urls = [];
-          
-          // 1. Check window.ui config
-          if (window.ui && typeof window.ui.getConfigs === 'function') {
-            const config = window.ui.getConfigs();
-            if (config.url) urls.push(config.url);
-            if (Array.isArray(config.urls)) {
-              config.urls.forEach(u => { if (u && u.url) urls.push(u.url); });
-            }
-          }
-
-          // 2. Check window.SwaggerUIBundle options
-          if (window.SwaggerUIBundle) {
-            // Some UI instances store setup config in global variables or attributes
-            // We can also extract from scripts matching instantiation calls
-          }
-
-          // 3. Search document body for swagger-config or similar attributes
-          const swaggerConfigEl = document.getElementById('swagger-config');
-          if (swaggerConfigEl && swaggerConfigEl.textContent) {
-            try {
-              const cfg = JSON.parse(swaggerConfigEl.textContent);
-              if (cfg.url) urls.push(cfg.url);
-              if (Array.isArray(cfg.urls)) {
-                cfg.urls.forEach(u => { if (u && u.url) urls.push(u.url); });
-              }
-            } catch (e) {}
-          }
-
-          document.documentElement.setAttribute('data-swagger-detected-urls', JSON.stringify(urls));
-        })();
-      `;
-
-      const script = document.createElement('script');
-      script.textContent = scriptContent;
-      document.documentElement.appendChild(script);
-      script.remove();
-
-      const rawUrls = document.documentElement.getAttribute('data-swagger-detected-urls');
-      document.documentElement.removeAttribute('data-swagger-detected-urls');
-
-      if (rawUrls) {
-        try {
-          resolve(JSON.parse(rawUrls) as string[]);
-        } catch {
-          resolve([]);
-        }
-      } else {
+      if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
         resolve([]);
+        return;
       }
+      chrome.runtime.sendMessage({ type: 'DETECT_SWAGGER_URLS' }, (response) => {
+        if (chrome.runtime.lastError || !response) {
+          resolve([]);
+        } else {
+          resolve(response);
+        }
+      });
     });
   }
 

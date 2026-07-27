@@ -16,17 +16,19 @@ export class SchemaDataGenerator {
     if (schema.enum && schema.enum.length > 0) return this.rand.pick(schema.enum);
 
     switch (schema.type) {
-      case 'object':
+      case 'object': {
         const obj: Record<string, unknown> = {};
         const props = schema.properties || {};
         for (const key of Object.keys(props)) {
           obj[key] = this.generateValid(props[key]);
         }
         return obj;
+      }
 
-      case 'array':
+      case 'array': {
         const itemSchema = schema.items || {};
         return [this.generateValid(itemSchema)];
+      }
 
       case 'integer':
       case 'number':

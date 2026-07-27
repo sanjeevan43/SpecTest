@@ -12,4 +12,5 @@ export interface ApiExecutionResult {
   error: string | null;
   retryCount: number;
   resolvedParameters?: ResolvedParameter[];
+  durationMs?: number;
 }

@@ -12,13 +12,23 @@ export function App() {
   const [tabState, setTabState] = useState<TabState | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const manifest = chrome.runtime.getManifest();
-  const version = manifest.version;
-  const name = manifest.name;
+  const manifest = typeof chrome !== 'undefined' && chrome.runtime ? chrome.runtime.getManifest() : null;
+  const version = manifest?.version || '1.0.0';
+  const name = manifest?.name || 'Swagger API Auto Tester';
 
   useEffect(() => {
     async function fetchState() {
       setLoading(true);
+      if (typeof chrome === 'undefined' || !chrome.tabs || !chrome.runtime) {
+        setTabState({
+          url: typeof window !== 'undefined' ? window.location.href : 'Unknown',
+          detected: false,
+          framework: 'None',
+          version: version,
+        });
+        setLoading(false);
+        return;
+      }
       // Get current active tab
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const activeTab = tabs[0];

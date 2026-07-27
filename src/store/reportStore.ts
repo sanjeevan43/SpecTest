@@ -24,6 +24,7 @@ interface ReportStoreState {
   setCompareRight: (id: string | null) => void;
   updateSettings: (settings: Partial<ReportSettings>) => void;
   loadFromStorage: () => Promise<void>;
+  saveToStorage: () => void;
   reset: () => void;
 }
 

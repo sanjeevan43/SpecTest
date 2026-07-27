@@ -41,25 +41,9 @@ function detectFramework(): string | null {
 
 function runPageContextDetection(): Promise<string | null> {
   return new Promise((resolve) => {
-    const scriptContent = `
-      (function() {
-        const detected = !!(window.SwaggerUIBundle || window.swaggerUI || window.ui || window.Redoc);
-        document.documentElement.setAttribute('data-swagger-detected-var', detected ? 'true' : 'false');
-      })();
-    `;
-    const script = document.createElement('script');
-    script.textContent = scriptContent;
-    document.documentElement.appendChild(script);
-    script.remove();
-
-    const result = document.documentElement.getAttribute('data-swagger-detected-var');
-    document.documentElement.removeAttribute('data-swagger-detected-var');
-    
-    if (result === 'true') {
-      resolve('Global Variable Match');
-    } else {
-      resolve(null);
-    }
+    chrome.runtime.sendMessage({ type: 'DETECT_SWAGGER_VARS' }, (response) => {
+      resolve(response || null);
+    });
   });
 }
 

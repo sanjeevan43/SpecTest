@@ -55,6 +55,7 @@ export const useApiStore = create<ApiStoreState>((set) => ({
 
     set({
       document: doc,
+      loading: false,
       error: null,
       selectedServerUrl: doc ? doc.baseUrl : null,
       executionResults: initialResults,

@@ -15,6 +15,7 @@ interface EnvironmentStoreState {
   setGlobalHeaders: (headers: Record<string, string>) => void;
   setVariablesEnabled: (enabled: boolean) => void;
   loadFromStorage: () => Promise<void>;
+  saveToStorage: () => void;
   reset: () => void;
 }
 

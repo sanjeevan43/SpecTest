@@ -58,7 +58,12 @@ const runtimeMock = {
     version: '1.0.0',
     manifest_version: 3,
   })),
-  sendMessage: vi.fn(),
+  sendMessage: vi.fn((...args: any[]) => {
+    const callback = args[args.length - 1];
+    if (typeof callback === 'function') {
+      callback(null);
+    }
+  }),
   onInstalled: {
     addListener: vi.fn(),
     removeListener: vi.fn(),

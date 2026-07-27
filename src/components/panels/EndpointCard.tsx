@@ -216,7 +216,7 @@ export const EndpointCard: React.FC<EndpointCardProps> = ({
                     {result.response.statusCode}
                   </span>
                   <span className="text-slate-500 text-[10px]">{result.response.durationMs}ms</span>
-                  <span className="text-slate-600 text-[10px] font-mono">{result.response.contentType || ''}</span>
+                  <span className="text-slate-600 text-[10px] font-mono">{result.response.headers['content-type'] || ''}</span>
                 </div>
                 <div className="p-2 max-h-32 overflow-y-auto">
                   <pre className="text-[10px] font-mono text-slate-300 whitespace-pre-wrap break-all leading-relaxed">

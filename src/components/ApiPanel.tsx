@@ -6,6 +6,7 @@ import { useValidationStore } from '../store/validationStore';
 import { useEnvironmentStore } from '../store/environmentStore';
 import { useAuthenticationStore } from '../store/authenticationStore';
 import { useReportStore } from '../store/reportStore';
+import { useAIStore } from '../store/aiStore';
 import { useApiRunner } from '../hooks/useApiRunner';
 import { useTestRunner } from '../hooks/useTestRunner';
 import { ResponseComparator } from '../services/ResponseComparator';
@@ -119,6 +120,26 @@ export const ApiPanel: React.FC<ApiPanelProps> = ({
     loadFromStorage: loadReportsFromStorage,
   } = useReportStore();
 
+  const {
+    enabled: aiEnabled,
+    provider: aiProvider,
+    apiKeyMasked: aiApiKeyMasked,
+    baseUrl: aiBaseUrl,
+    model: aiModel,
+    temperature: aiTemperature,
+    maxTokens: aiMaxTokens,
+    timeout: aiTimeout,
+    onlyForUnresolved: aiOnlyForUnresolved,
+    alwaysAskBeforeSend: aiAlwaysAskBeforeSend,
+    connectionStatus: aiConnectionStatus,
+    setAIEnabled,
+    updateConfig: updateAIConfig,
+    saveConfiguration: saveAIConfiguration,
+    clearApiKey: clearAIApiKey,
+    testConnection: testAIConnection,
+    loadFromStorage: loadAIFromStorage,
+  } = useAIStore();
+
   const { runEndpoint, runAll, stop, retryFailed, isRunningAll } = useApiRunner();
   const { generateAllTests, runTestCase, runEndpointSuite, runAllScenarios, isRunningSuite } = useTestRunner();
 
@@ -136,11 +157,16 @@ export const ApiPanel: React.FC<ApiPanelProps> = ({
   const [apiKeyNameInput, setApiKeyNameInput] = useState<string>('');
   const [apiKeyValueInput, setApiKeyValueInput] = useState<string>('');
 
+  // AI local API Key input
+  const [aiApiKeyInput, setAiApiKeyInput] = useState<string>('');
+
   // Load storage states
   useEffect(() => {
     loadEnvFromStorage();
     loadAuthFromStorage();
     loadReportsFromStorage();
+    loadAIFromStorage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Sync auth state to local fields
@@ -157,6 +183,7 @@ export const ApiPanel: React.FC<ApiPanelProps> = ({
     if (document) {
       generateAllTests();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [document, testSettings.maxTestCases, testSettings.enableBoundary, testSettings.enableNegative, testSettings.maxStringLength, testSettings.maxArraySize]);
 
   // Filter endpoints
@@ -217,12 +244,13 @@ export const ApiPanel: React.FC<ApiPanelProps> = ({
         mimeType = 'text/html';
         filename += '.html';
         break;
-      case 'PDF':
+      case 'PDF': {
         content = PdfReportGenerator.generate(report);
         const win = window.open('', '_blank');
         win?.document.write(content);
         win?.document.close();
         return;
+      }
     }
 
     const blob = new Blob([content], { type: mimeType });
@@ -239,10 +267,10 @@ export const ApiPanel: React.FC<ApiPanelProps> = ({
     const apis = currentReport.apis;
 
     let content = '';
-    let filename = `collection-${document.info.title.replace(/\s+/g, '-')}`;
+    let filename = `collection-${document.title.replace(/\s+/g, '-')}`;
 
     if (format === 'postman') {
-      const pm = CollectionGenerator.toPostman(document.info.title, apis);
+      const pm = CollectionGenerator.toPostman(document.title, apis);
       content = JSON.stringify(pm, null, 2);
       filename += '.postman_collection.json';
     } else if (format === 'bruno') {
@@ -252,7 +280,7 @@ export const ApiPanel: React.FC<ApiPanelProps> = ({
       content = HttpFileGenerator.generate(apis, reportSettings.maskSensitiveData);
       filename += '.http';
     } else if (format === 'insomnia') {
-      const ins = CollectionGenerator.toInsomnia(document.info.title, apis);
+      const ins = CollectionGenerator.toInsomnia(document.title, apis);
       content = JSON.stringify(ins, null, 2);
       filename += '-insomnia.json';
     }
@@ -823,6 +851,225 @@ export const ApiPanel: React.FC<ApiPanelProps> = ({
                       />
                     </div>
                   </div>
+                </div>
+
+                {/* AI Configuration settings */}
+                <div className="p-5 bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-850 rounded-xl space-y-5 shadow-xl">
+                  <div className="flex items-center gap-2.5 pb-3 border-b border-slate-850">
+                    <div className="p-1.5 bg-blue-600/10 text-blue-400 rounded-lg border border-blue-500/20">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 21m0 0l-.813-5.096L3 15.09m6 5.91L15.904 15m0 0L21 14.188m-5.096-.813L15 9m0 0l.813-5.096L9 3.812m6 5.096L9.812 9M15 9H9.812" />
+                      </svg>
+                    </div>
+                    <div>
+                      <span className="font-bold text-white block text-sm tracking-wide">AI Settings</span>
+                      <span className="text-slate-400 text-[10px]">Configure optional LLM resolvers for complex parameters.</span>
+                    </div>
+                  </div>
+
+                  {/* Privacy & Safety Warning Card */}
+                  <div className="p-3.5 bg-slate-950/60 border border-blue-500/15 rounded-lg space-y-1.5 shadow-inner">
+                    <div className="flex items-center gap-2 text-blue-450 font-bold text-[11px] uppercase tracking-wider">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>Privacy & Data Protection Notice</span>
+                    </div>
+                    <p className="text-slate-400 text-[10.5px] leading-relaxed">
+                      AI resolution is completely optional. When enabled, only Swagger API metadata (OpenAPI paths, parameter schemas, and tags) is sent to the provider. <strong className="text-slate-350">No request or response payloads are ever transmitted.</strong>
+                    </p>
+                  </div>
+
+                  {/* Engine Enable Toggle */}
+                  <div className="flex justify-between items-center bg-slate-950/40 p-3 rounded-lg border border-slate-850 hover:border-slate-800 transition-colors">
+                    <div>
+                      <span className="font-bold text-slate-200 text-xs block">AI Resolution Engine</span>
+                      <span className="text-[10px] text-slate-450">Toggles AI dependency & workflow generation</span>
+                    </div>
+                    <button
+                      onClick={() => setAIEnabled(!aiEnabled)}
+                      className={`relative inline-flex h-5.5 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        aiEnabled ? 'bg-blue-600' : 'bg-slate-800'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4.5 w-4.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          aiEnabled ? 'translate-x-5.5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {aiEnabled && (
+                    <div className="space-y-4 pt-1 animate-fadeIn">
+                      {/* Section 1: Provider Setup */}
+                      <div className="bg-slate-950/40 p-3.5 rounded-lg border border-slate-850 space-y-3">
+                        <span className="text-[9.5px] uppercase font-bold text-slate-500 tracking-wider block">AI Credentials</span>
+                        
+                        <div>
+                          <label className="block text-[10.5px] text-slate-400 font-medium mb-1.5">AI Provider</label>
+                          <select
+                            value={aiProvider}
+                            onChange={(e) => updateAIConfig({ provider: e.target.value as any })}
+                            className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 rounded px-2.5 py-1.5 text-slate-200 focus:outline-none transition-colors"
+                          >
+                            <option value="gemini">Gemini Compatible</option>
+                            <option value="openai">OpenAI Compatible</option>
+                            <option value="openrouter">OpenRouter Compatible</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10.5px] text-slate-400 font-medium mb-1.5">API Key</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="password"
+                              placeholder={aiApiKeyMasked ? `Masked: ${aiApiKeyMasked}` : 'Enter API Key'}
+                              value={aiApiKeyInput}
+                              onChange={(e) => setAiApiKeyInput(e.target.value)}
+                              className="flex-1 bg-slate-950 border border-slate-800 hover:border-slate-700 rounded px-2.5 py-1.5 text-slate-200 focus:outline-none transition-colors"
+                            />
+                            {aiApiKeyMasked && (
+                              <button
+                                onClick={async () => {
+                                  await clearAIApiKey();
+                                  setAiApiKeyInput('');
+                                }}
+                                className="px-3 bg-rose-950/30 border border-rose-500/20 text-rose-350 hover:bg-rose-900/20 rounded font-bold transition-all text-xs"
+                              >
+                                Clear
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Section 2: Model Tuning */}
+                      <div className="bg-slate-950/40 p-3.5 rounded-lg border border-slate-850 space-y-3">
+                        <span className="text-[9.5px] uppercase font-bold text-slate-500 tracking-wider block">Parameters</span>
+                        
+                        <div>
+                          <label className="block text-[10.5px] text-slate-400 font-medium mb-1.5">Base URL</label>
+                          <input
+                            type="text"
+                            value={aiBaseUrl}
+                            onChange={(e) => updateAIConfig({ baseUrl: e.target.value })}
+                            className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 rounded px-2.5 py-1.5 text-slate-200 focus:outline-none transition-colors font-mono"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10.5px] text-slate-400 font-medium mb-1.5">Model Name</label>
+                          <input
+                            type="text"
+                            value={aiModel}
+                            onChange={(e) => updateAIConfig({ model: e.target.value })}
+                            className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 rounded px-2.5 py-1.5 text-slate-200 focus:outline-none transition-colors font-mono"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10.5px] text-slate-400 font-medium mb-1.5">Temperature</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              max="2"
+                              value={aiTemperature}
+                              onChange={(e) => updateAIConfig({ temperature: parseFloat(e.target.value) || 0.1 })}
+                              className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 rounded px-2.5 py-1.5 text-slate-200 focus:outline-none transition-colors"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10.5px] text-slate-400 font-medium mb-1.5">Max Tokens</label>
+                            <input
+                              type="number"
+                              value={aiMaxTokens}
+                              onChange={(e) => updateAIConfig({ maxTokens: parseInt(e.target.value) || 2048 })}
+                              className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 rounded px-2.5 py-1.5 text-slate-200 focus:outline-none transition-colors"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Section 3: Engine Behaviors */}
+                      <div className="bg-slate-950/40 p-3.5 rounded-lg border border-slate-850 space-y-3">
+                        <span className="text-[9.5px] uppercase font-bold text-slate-500 tracking-wider block">Policies</span>
+
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <span className="font-semibold text-slate-300 block text-[11px]">Use AI only for unresolved APIs</span>
+                            <span className="text-[9.5px] text-slate-500">Only trigger AI when deterministic rules fail</span>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={aiOnlyForUnresolved}
+                            onChange={(e) => updateAIConfig({ onlyForUnresolved: e.target.checked })}
+                            className="rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-0 w-4 h-4"
+                          />
+                        </div>
+
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <span className="font-semibold text-slate-300 block text-[11px]">Always Ask Before Sending</span>
+                            <span className="text-[9.5px] text-slate-500">Require approval before calling external LLMs</span>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={aiAlwaysAskBeforeSend}
+                            onChange={(e) => updateAIConfig({ alwaysAskBeforeSend: e.target.checked })}
+                            className="rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-0 w-4 h-4"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex gap-2.5 pt-2">
+                        <button
+                          onClick={async () => {
+                            if (aiApiKeyInput) {
+                              updateAIConfig({ apiKey: aiApiKeyInput });
+                            }
+                            await saveAIConfiguration();
+                            setAiApiKeyInput('');
+                            alert('AI Settings saved successfully!');
+                          }}
+                          className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold text-xs shadow-md shadow-blue-650/15 active:scale-[0.98] transition-all"
+                        >
+                          Save Settings
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (aiApiKeyInput) {
+                              updateAIConfig({ apiKey: aiApiKeyInput });
+                            }
+                            await testAIConnection();
+                          }}
+                          className="px-4 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 rounded-lg font-bold text-xs active:scale-[0.98] transition-all"
+                        >
+                          Test Connection
+                        </button>
+                      </div>
+
+                      {aiConnectionStatus !== 'Disconnected' && (
+                        <div className="p-3 bg-slate-950 border border-slate-850 rounded-lg flex justify-between items-center font-sans text-xs">
+                          <span className="text-slate-400">Connection Status:</span>
+                          <span
+                            className={`font-bold px-2 py-0.5 rounded text-[10px] uppercase border ${
+                              aiConnectionStatus === 'Connected'
+                                ? 'bg-emerald-500/10 text-emerald-450 border-emerald-500/20'
+                                : aiConnectionStatus === 'Testing...'
+                                ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 animate-pulse'
+                                : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                            }`}
+                          >
+                            {aiConnectionStatus}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

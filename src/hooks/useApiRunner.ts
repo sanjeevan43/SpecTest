@@ -113,6 +113,7 @@ export function useApiRunner() {
       updateExecutionResult(endpointId, {
         status: isCancelled ? 'cancelled' : status,
         response,
+        durationMs: response.durationMs,
         error: response.statusCode >= 400 || isCancelled ? response.statusText || 'Error response received' : null,
       });
 
@@ -155,7 +156,17 @@ export function useApiRunner() {
     if (list.length === 0) return;
 
     // Apply logical workflow ordering (Login -> Create -> Read -> Update -> Delete)
-    const sortedList = WorkflowEngine.sortEndpoints(list);
+    let sortedList = WorkflowEngine.sortEndpoints(list);
+
+    try {
+      const aiStore = (await import('../store/aiStore')).useAIStore.getState();
+      if (aiStore.enabled && document) {
+        const { WorkflowGenerator } = await import('../services/WorkflowGenerator');
+        sortedList = await WorkflowGenerator.sortEndpointsWithAI(sortedList, document);
+      }
+    } catch (e) {
+      console.warn('[AI Workflow Sort] Failed to sort with AI, using default order.', e);
+    }
 
     setIsRunningAll(true);
     stopRequested.current = false;

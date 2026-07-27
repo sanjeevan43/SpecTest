@@ -7,7 +7,7 @@ export interface ApiExecutionDetail {
   statusCode?: number;
   statusText?: string;
   durationMs: number;
-  status: 'passed' | 'failed' | 'skipped' | 'running';
+  status: 'pending' | 'running' | 'passed' | 'failed' | 'cancelled' | 'skipped';
   validationScore?: number;
   validationErrors: string[];
   requestHeaders: Record<string, string>;
@@ -21,7 +21,7 @@ export interface TestCaseExecutionDetail {
   id: string;
   name: string;
   type: string; // positive, negative, etc.
-  status: 'passed' | 'failed' | 'pending';
+  status: 'pending' | 'running' | 'passed' | 'failed' | 'skipped';
   durationMs: number;
   expectedResult: string;
   actualResult: string;

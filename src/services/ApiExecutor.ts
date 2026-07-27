@@ -29,6 +29,7 @@ export class ApiExecutor {
       validateStatus: () => true, // Treat all responses as completed, handle status codes at parsing layer
     };
 
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       const startTime = performance.now();
       try {

@@ -18,6 +18,7 @@ interface AuthenticationStoreState {
   updateSettings: (settings: Partial<AuthSettings>) => void;
   clearAuth: () => void;
   loadFromStorage: () => Promise<void>;
+  saveToStorage: () => void;
   reset: () => void;
 }
 
